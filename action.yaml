@@ -1,0 +1,50 @@
+name: "Mergify Dependencies Conflicts Resolver"
+author: "Mergifyio"
+
+description: "Resolve conflicts in dependencies version files."
+
+inputs:
+  head-repo:
+    description: "The full name of the head repository of the PR"
+    required: true
+  head-branch:
+    description: "The head branch of the PR"
+    required: true
+  base-branch:
+    description: "The base branch of the PR"
+    required: true
+    default: "main"
+  user:
+    description: "User associated to the token used to checkout or to the GITHUB_TOKEN (defaults to github action user)"
+    required: true
+    default: "github-actions"
+  email:
+    description: "Email associated to the token used to checkout or to the GITHUB_TOKEN (defaults to github action email)"
+    required: true
+    default: "github-actions@github.com"
+
+runs:
+  using: composite
+  steps:
+    - name: Fetch the required python version from pyproject.toml
+      id: python-version
+      run: |
+        version=$(cat pyproject.toml | grep -w "python =" | sed -n 's/.*[^0-9.]\([0-9]\+\(\.[0-9]\+\)*\).*/\1/p;q')
+        echo "Read version from pyproject.toml, python==$version"
+        echo "version=$version" >> $GITHUB_OUTPUT
+      shell: bash
+
+    - name: Setup Python
+      uses: actions/setup-python@v4.1.0
+      with:
+        python-version: ${{ steps.python-version.outputs.version }}
+
+    - name: Resolve conflicts and push
+      run: ${{ github.action_path }}/resolver.sh
+      shell: bash
+      env:
+        HEAD_REPO: ${{ inputs.head-repo }}
+        HEAD_BRANCH: ${{ inputs.head-branch }}
+        BASE_BRANCH: ${{ inputs.base-branch }}
+        USER: ${{ inputs.user }}
+        EMAIL: ${{ inputs.email }}
